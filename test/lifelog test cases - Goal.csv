@@ -1,19 +1,18 @@
-Name,Uri,HttpVerb,RequestBody,WantStatusCode,WantResponseBody,Skip,ref #,Note
-Goal Post Field validation-String field,/goal,POST,"{""Name"":123,""Notes"":""Test123""}",400 bad request,?,,1.a.1,
+Name,Uri,HttpVerb,RequestBody,WantStatusCode,WantResponseBody,Skip,ref #,Notes
+Goal Post Field validation-String field,/goal,POST,"{""Name"":123,""Notes"":""Test123""}",400 bad request,?,1,1.a.1,
 Goal Post Field validation-String field,/goal,POST,"{""Name"":""123"",""Notes"":123}",400 bad request,?,,1.a.2,
-Goal Post Field validation-Passing blank in mandatory fields,/goal,POST,"{""Name"":"""".""Notes"":""test4""}",400 bad request,?,,1.b,
+Goal Post Field validation-Passing blank in mandatory fields,/goal,POST,"{""Name"":"""".""Notes"":""test4""}",400 bad request,?,TRUE,1.b,
 Goal Post new record test,/goal,POST,"{""Name"":""test1"",""Notes"":""test1""}",201 (created),"{""Name"":""test1"",""Notes"":""test"",""CreatedOn"":"""",""ModifiedOn"":""""}",,2.1,"the value for the date fields is ignored in ""want - Response body"" as they are not deterministic."
-Goal Post Get record,/goal/test1,GET,,200 ok,,,2.2,
+Goal Post Get record,/goal/test1,GET,,200 ok,,true,2.2,
 Goal Post new record with duplicate key ,/goal,POST,"{""Name"":""test1"",""Notes"":""test1""}",400 bad request,"{""Name"":""test1"",""Notes"":""test"",""CreatedOn"":"""",""ModifiedOn"":""""}",,3,"the value for the date fields is ignored in ""want - Response body"" as they are not deterministic."
-"Goal Post with typo in field name in json 
-/Sending Extra field",/goal,POST,"{""Name"":""test2"",""Note"":""test2""}",400 bad request,?,,4,
+Goal Post with typo in field name in json/Sending Extra field,/goal,POST,"{""Name"":""test2"",""Note"":""test2""}",400 bad request,?,YES,4,
 Goal Post Invalid Json,/goal,POST,"{""Name"":""test3""Notes"":""testnotes3""}",400 bad request,?,,5,
-Goal Post without body,/goal,POST,,400 bad request,?,,6,
+Goal Post without body,/goal,POST,,400 bad request,?,yes,6,
 Goal Post with wrong key name,/goal,POST,"{""id"":""test4"",""Notes"":""testNotes4""}",400 bad request,,,7,
 ,,,,,,,,
-Goal Get with key,/goal/test1,GET,,200 ok,"check if all the fields are correct in the response as per the database, including the key",,1.a,
+Goal Get with key,/goal/test1,GET,,200 ok,"check if all the fields are correct in the response as per the database, including the key",yEs,1.a,
 Goal Get time field in response should be of RFC 3339 format ,/goal/test1,GET,,200 ok ,"example “2016-10-02T15:04:05-07:00""",,1.b,
-Goal Get with nonexisting Key,/goal/xyz,GET,,404 not found,,,2,
+Goal Get with nonexisting Key,/goal/xyz,GET,,404 not found,,TrUe,2,
 Goal Get with blank key,/goal/,GET,,200 ok ,,,3,
 ,,,,,,,,
 Goal Put Field validation-String field,/goal/test1,PUT,"{""Name"":""test1"",""Notes"":123}",400 bad request,?,,1.a,

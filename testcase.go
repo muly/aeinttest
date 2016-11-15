@@ -18,11 +18,13 @@ import (
 
 type (
 	TestCase struct {
-		Name           string
-		RequestBody    string
-		HttpVerb       string
-		Uri            string
-		WantStatusCode int
+		Name             string
+		RequestBody      string
+		HttpVerb         string
+		Uri              string
+		WantStatusCode   int
+		WantResponseBody string
+		Skip             bool
 		//
 		*testing.T
 		context.Context
@@ -33,24 +35,30 @@ type (
 )
 
 func (tc TestCase) Run() {
+
+	if tc.Skip {
+		tc.Log("Skipped test case:", tc.Name)
+		return
+	}
 	// prepare request
 	body := strings.NewReader(tc.RequestBody)
 	req, err := http.NewRequest(tc.HttpVerb, tc.Uri, body) //inst.NewRequest("GET", goalUrl, body) //
 	if err != nil {
-		tc.T.Error(err)
+		tc.Error(err)
 	}
+
 	gorillacontext.Set(req, "Context", tc.Context)
 
 	// prepare response writer
 	record := httptest.NewRecorder()
 
 	// make the request
-	tc.Handler.ServeHTTP(record, req)
+	tc.ServeHTTP(record, req)
 
 	got := record.Code
 
 	if tc.WantStatusCode != got {
-		tc.T.Error(tc.Name, ": Status Code: wanted ", tc.WantStatusCode, " but got ", got)
+		tc.Error(tc.Name, ": Status Code: wanted ", tc.WantStatusCode, " but got ", got)
 	}
 
 }
@@ -68,16 +76,13 @@ func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 	r := csv.NewReader(file)
 	r.Comma = delim
 	r.Comment = '#'
-	//r.FieldsPerRecord = 5 // 5 indicates the 5 test case related fields of the TestCase struct
 
 	records, err := r.ReadAll()
 	if err != nil {
 		return err
 	}
 
-	var name, requestBody, httpVerb, uri, wantStatusCode int
-
-	//fmt.Println("########################## 1")
+	var name, requestBody, httpVerb, uri, wantStatusCode, wantResponseBody, skip int
 
 	for i, row := range records {
 
@@ -96,6 +101,10 @@ func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 					uri = j
 				case "WantStatusCode":
 					wantStatusCode = j
+				case "WantResponseBody":
+					wantResponseBody = j
+				case "Skip":
+					skip = j
 				}
 			}
 			continue
@@ -106,12 +115,15 @@ func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 			httpVerb = 2
 			uri = 3
 			wantStatusCode = 4
+			wantResponseBody = 5
+			skip = 6
 		}
 
-		if len(row[name])+len(row[requestBody])+len(row[httpVerb])+len(row[uri])+len(row[wantStatusCode]) == 0 {
-			continue
+		if len(row[name])+len(row[requestBody])+len(row[httpVerb])+len(row[uri])+len(row[wantStatusCode])+
+			len(row[wantResponseBody])+len(row[skip]) == 0 {
+			continue // if all the fields are blank, then skip
 		} else if len(row[name]) == 0 || len(row[httpVerb]) == 0 || len(row[uri]) == 0 || len(row[wantStatusCode]) == 0 {
-			return errors.New("Missing manditory information in row " + strconv.Itoa(i))
+			return errors.New("Missing manditory information in row " + strconv.Itoa(i) + " (" + row[name] + ")") // if only manditory fields are blank, then error out
 		}
 
 		tc := TestCase{}
@@ -119,12 +131,15 @@ func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 		tc.RequestBody = row[requestBody]
 		tc.HttpVerb = row[httpVerb]
 		tc.Uri = row[uri]
+		tc.WantResponseBody = row[wantResponseBody]
+		switch strings.ToUpper(row[skip]) {
+		case "YES", "TRUE", "1":
+			tc.Skip = true
+		case "NO", "FALSE", "0":
+			tc.Skip = false
+		}
 
-		//fmt.Println("row:", row)
-		//fmt.Println(name, requestBody, httpVerb, uri, wantStatusCode)
-		//fmt.Println("wantStatusCode:", row[wantStatusCode][0:3])
-
-		statusCode, err := strconv.Atoi(row[wantStatusCode][0:3])
+		statusCode, err := strconv.Atoi(row[wantStatusCode][0:3]) // take the first 3 digits of the status code. skip the rest, the information that user might put like in '200 OK' or '400 Bad Request'
 		if err != nil {
 			return err
 		}

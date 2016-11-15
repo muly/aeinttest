@@ -67,6 +67,7 @@ func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 
 	r := csv.NewReader(file)
 	r.Comma = delim
+	r.Comment = '#'
 	//r.FieldsPerRecord = 5 // 5 indicates the 5 test case related fields of the TestCase struct
 
 	records, err := r.ReadAll()

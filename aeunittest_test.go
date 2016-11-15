@@ -11,6 +11,9 @@ func Test1(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(tcs)
+
+	for i, tc := range tcs {
+		t.Log(i, tc)
+	}
 
 }

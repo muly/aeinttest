@@ -2,10 +2,12 @@ package aeunittest
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -34,12 +36,13 @@ type (
 	TestCases []TestCase
 )
 
-func (tc TestCase) Run() {
+func (tc TestCase) Run1() (ResponseBody []byte) { // compare response code only and return response body received
 
 	if tc.Skip {
 		tc.Log("Skipped test case:", tc.Name)
 		return
 	}
+
 	// prepare request
 	body := strings.NewReader(tc.RequestBody)
 	req, err := http.NewRequest(tc.HttpVerb, tc.Uri, body) //inst.NewRequest("GET", goalUrl, body) //
@@ -55,10 +58,42 @@ func (tc TestCase) Run() {
 	// make the request
 	tc.ServeHTTP(record, req)
 
-	got := record.Code
+	//tc.Log(record.Body)
 
-	if tc.WantStatusCode != got {
+	if got := record.Code; tc.WantStatusCode != got {
 		tc.Error(tc.Name, ": Status Code: wanted ", tc.WantStatusCode, " but got ", got)
+	}
+
+	return record.Body.Bytes()
+
+}
+
+func (tc TestCase) Run() {
+
+	if tc.Skip {
+		tc.Log("Skipped test case:", tc.Name)
+		return
+	}
+
+	g1 := tc.Run1()
+	var got interface{}
+
+	if err := json.Unmarshal(g1, &got); err != nil {
+		tc.Error("Want Response Body invalid format: ", err.Error())
+	}
+
+	var want interface{}
+
+	if err := json.Unmarshal([]byte(tc.WantResponseBody), &want); err != nil {
+		tc.Error("Want Response Body invalid format: ", err.Error())
+	}
+
+	//tc.Log("Want:", want)
+	//tc.Log("Got: ", got)
+	//tc.Log("DeepEqual:", reflect.DeepEqual(got, want))
+
+	if !reflect.DeepEqual(got, want) {
+		tc.Error(tc.Name, ": Response Body : wanted ", tc.WantResponseBody, " but got ", string(g1))
 	}
 
 }

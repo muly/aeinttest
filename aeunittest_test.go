@@ -12,8 +12,8 @@ func Test1(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, tc := range tcs {
-		t.Log(i, tc)
+	for _, tc := range tcs {
+		tc.Run()
 	}
 
 }

@@ -26,7 +26,7 @@ type (
 		Uri              string
 		WantStatusCode   int
 		WantResponseBody string
-		Skip             bool
+		SkipFlag         bool
 		//
 		*testing.T
 		context.Context
@@ -36,24 +36,24 @@ type (
 	TestCases []TestCase
 )
 
-func (tc TestCase) Run1() (ResponseBody []byte) { // compare response code only and return response body received
+func (tc TestCase) RunCheckStatusCode() (ResponseBody []byte) { // compare response status code only and return response body received
+	// prepare response writer
+	record := httptest.NewRecorder()
 
-	if tc.Skip {
+	//tc.Run(tc.Name, func(t *testing.T) { //Note: removed the code related to Subtests as it looks like Appengine SDK is not yet using Go 1.7 as of 2016 Dec.
+	if tc.SkipFlag {
 		tc.Log("Skipped test case:", tc.Name)
 		return
 	}
 
 	// prepare request
 	body := strings.NewReader(tc.RequestBody)
-	req, err := http.NewRequest(tc.HttpVerb, tc.Uri, body) //inst.NewRequest("GET", goalUrl, body) //
+	req, err := http.NewRequest(tc.HttpVerb, tc.Uri, body)
 	if err != nil {
 		tc.Error(err)
 	}
 
 	gorillacontext.Set(req, "Context", tc.Context)
-
-	// prepare response writer
-	record := httptest.NewRecorder()
 
 	// make the request
 	tc.ServeHTTP(record, req)
@@ -63,39 +63,36 @@ func (tc TestCase) Run1() (ResponseBody []byte) { // compare response code only 
 	if got := record.Code; tc.WantStatusCode != got {
 		tc.Error(tc.Name, ": Status Code: wanted ", tc.WantStatusCode, " but got ", got)
 	}
-
+	//})
 	return record.Body.Bytes()
-
 }
 
-func (tc TestCase) Run() {
-
-	if tc.Skip {
+func (tc TestCase) RunCase() {
+	//tc.Run(tc.Name, func(t *testing.T) {
+	if tc.SkipFlag {
 		tc.Log("Skipped test case:", tc.Name)
-		return
+		//return
 	}
 
-	g1 := tc.Run1()
-	var got interface{}
+	// execute test case to check the status code and capture the response body
+	gotResponseBody := tc.RunCheckStatusCode()
 
-	if err := json.Unmarshal(g1, &got); err != nil {
-		tc.Error("Want Response Body invalid format: ", err.Error())
+	// compare the 'got' with 'want', and report if not matching
+
+	var got interface{}
+	if err := json.Unmarshal(gotResponseBody, &got); err != nil {
+		tc.Error(tc.Name, ": Got Response Body invalid format: \n", string(gotResponseBody), "\n", err.Error())
 	}
 
 	var want interface{}
-
 	if err := json.Unmarshal([]byte(tc.WantResponseBody), &want); err != nil {
-		tc.Error("Want Response Body invalid format: ", err.Error())
+		tc.Error(tc.Name, ": Want Response Body invalid format: \n", tc.WantResponseBody, "\n", err.Error())
 	}
-
-	//tc.Log("Want:", want)
-	//tc.Log("Got: ", got)
-	//tc.Log("DeepEqual:", reflect.DeepEqual(got, want))
 
 	if !reflect.DeepEqual(got, want) {
-		tc.Error(tc.Name, ": Response Body : wanted ", tc.WantResponseBody, " but got ", string(g1))
+		tc.Error(tc.Name, ": Response Body : wanted ", tc.WantResponseBody, " but got ", string(gotResponseBody))
 	}
-
+	//})
 }
 
 // Load method loads the given test cases data from the flat file into the TestCases slice object.
@@ -169,9 +166,9 @@ func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 		tc.WantResponseBody = row[wantResponseBody]
 		switch strings.ToUpper(row[skip]) {
 		case "YES", "TRUE", "1":
-			tc.Skip = true
+			tc.SkipFlag = true
 		case "NO", "FALSE", "0":
-			tc.Skip = false
+			tc.SkipFlag = false
 		}
 
 		statusCode, err := strconv.Atoi(row[wantStatusCode][0:3]) // take the first 3 digits of the status code. skip the rest, the information that user might put like in '200 OK' or '400 Bad Request'

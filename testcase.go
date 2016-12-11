@@ -1,9 +1,15 @@
-package aeunittest
+// Package aeinttest is the Integration test library to support writing automated test code for your
+// golang API code for those that will be deployed on AppEngine
+
+//
+
+package aeinttest
 
 import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"golang.org/x/net/context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,10 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	//"fmt"
-
 	gorillacontext "github.com/gorilla/context"
-	"golang.org/x/net/context"
 )
 
 type (
@@ -36,7 +39,14 @@ type (
 	TestCases []TestCase
 )
 
-func (tc TestCase) RunCheckStatusCode() (ResponseBody []byte) { // compare response status code only and return response body received
+// Method RunCheckStatusCode, for the given test case record, invokes the call to the API on the given test server,
+// compares want response status code to the got.
+// This method doesn't check the response body, but will return the got response body to the caller.
+// Caller is responsible to test for the response body.
+// This limitation is helpful in situations where the response body cannot be directly tested,
+// for example, if the response body contains undeterministic fields like created date, modified date.
+// If that is not the case, use the RunCase() method instead.
+func (tc TestCase) RunCheckStatusCode() (responseBody []byte) {
 	// prepare response writer
 	record := httptest.NewRecorder()
 
@@ -58,8 +68,6 @@ func (tc TestCase) RunCheckStatusCode() (ResponseBody []byte) { // compare respo
 	// make the request
 	tc.ServeHTTP(record, req)
 
-	//tc.Log(record.Body)
-
 	if got := record.Code; tc.WantStatusCode != got {
 		tc.Error(tc.Name, ": Status Code: wanted ", tc.WantStatusCode, " but got ", got)
 	}
@@ -67,6 +75,13 @@ func (tc TestCase) RunCheckStatusCode() (ResponseBody []byte) { // compare respo
 	return record.Body.Bytes()
 }
 
+// Method RunCase does same thing as RunCheckStatusCode.
+// The major difference is that, instead of returning the (got) response body,
+// RunCase compares the want response body with the got, and pass/fail the test case accordingly.
+//
+// The order of elements in the json (between got and want) is not strict,
+// however, all the fields in the want should exist in got (including the empty fields), and vice versa.
+// otherwise the test fails.
 func (tc TestCase) RunCase() {
 	//tc.Run(tc.Name, func(t *testing.T) {
 	if tc.SkipFlag {
@@ -96,7 +111,7 @@ func (tc TestCase) RunCase() {
 }
 
 // Load method loads the given test cases data from the flat file into the TestCases slice object.
-// if header is provided, will parse the data accordign the header, otherwise, the default order will be used.
+// If header is provided, will parse the data accordign the header, otherwise, the default order will be used.
 func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 
 	file, err := os.Open(filePath)
@@ -155,7 +170,7 @@ func (tcs *TestCases) Load(filePath string, delim rune, hasHeader bool) error {
 			len(row[wantResponseBody])+len(row[skip]) == 0 {
 			continue // if all the fields are blank, then skip
 		} else if len(row[name]) == 0 || len(row[httpVerb]) == 0 || len(row[uri]) == 0 || len(row[wantStatusCode]) == 0 {
-			return errors.New("Missing manditory information in row " + strconv.Itoa(i) + " (" + row[name] + ")") // if only manditory fields are blank, then error out
+			return errors.New("Missing manditory information in row " + strconv.Itoa(i) + " (" + row[name] + ")") // if any manditory fields are blank, then error out
 		}
 
 		tc := TestCase{}

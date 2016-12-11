@@ -1,2 +1,2 @@
-# aeunittest
-unit test library for the golang projects that use Google appengine
+# aeinttest
+automated integration test library for the golang API projects deployed on Google appengine

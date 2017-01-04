@@ -1,2 +1,2 @@
 # aeinttest
-automated integration test library for the golang API projects deployed on Google appengine
+automated integration test library for the golang webservice projects deployed on Google appengine

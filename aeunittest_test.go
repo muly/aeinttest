@@ -1,4 +1,4 @@
-package aeunittest
+package aeinttest
 
 import (
 	"testing"

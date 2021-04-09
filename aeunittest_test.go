@@ -13,6 +13,7 @@ func Test1(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
+		tc.T = t
 		tc.RunCheckStatusCode()
 	}
 }
